@@ -1,3 +1,0 @@
-mutation_rate,crossover_rate,crossover_type,selection_type,restricted_mating,mean_final_best_fitness,std_final_best_fitness,min_final_best_fitness,max_final_best_fitness,mean_generations_run,stopped_early_trials,mean_runtime_seconds,completed_trials
-0.1,0.9,pmx,tournament,unidirectional,0.2508162707090378,0.016581509955031024,0.22739052772521973,0.274213582277298,38.2,5,28.800963958198555,5
-0.1,0.9,two_point_one_child,tournament,best_partial_match,0.2745631545782089,0.02586530629567556,0.24726460874080658,0.3112996518611908,57.2,5,45.057228383404436,5
