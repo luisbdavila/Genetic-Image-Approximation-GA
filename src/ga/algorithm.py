@@ -176,6 +176,7 @@ class GeneticAlgorithm:
         mutation_rate: float | None = None,
         elitism: int = 0,
         selection_type: str = "tournament",
+        tournament_size: int = 4,
         crossover_function: CrossoverFunction | None = None,
         mutation_function: MutationFunction | None = None,
         evaluation_backend: EvaluationBackend = "sequential",
@@ -205,6 +206,8 @@ class GeneticAlgorithm:
                                   the next generation (0 = no elitism).
             selection_type:       Parent selection strategy: "tournament",
                                   "ranking", or "roulette".
+            tournament_size:      Number of individuals sampled per tournament
+                                  (only used when selection_type="tournament").
             crossover_function:   Operator: (p1, p2, rate) → child or children.
             mutation_function:    Operator: (individual, rate, w, h, alpha) → individual.
             evaluation_backend:   "sequential", "thread", or "process".
@@ -264,6 +267,7 @@ class GeneticAlgorithm:
 
         self.elitism = elitism
         self.selection_type = selection.normalize_selection_type(selection_type)
+        self.tournament_size = tournament_size
         self.evaluation_backend = normalized_backend
         self.n_jobs = n_jobs
         self.chunksize = chunksize
@@ -437,7 +441,7 @@ class GeneticAlgorithm:
             self.population,
             fitness_values,
             selection_type=self.selection_type,
-            tournament_size=3,
+            tournament_size=self.tournament_size,
         )
 
     def crossover(
@@ -632,6 +636,7 @@ class GeneticAlgorithm:
             "crossover_function":   getattr(self.crossover_function, "__name__", None),
             "elitism":              self.elitism,
             "selection_type":       self.selection_type,
+            "tournament_size":      self.tournament_size,
             "triangle_alpha_range": list(self.triangle_alpha_range),
             "evaluation_backend":   self.evaluation_backend,
             "n_jobs":               self.n_jobs,

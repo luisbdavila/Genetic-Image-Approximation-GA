@@ -106,6 +106,7 @@ def save_run(
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S-%f")
     run_id = f"{pipeline.lower().replace(' ', '_')}_{timestamp}"
     filename = results_dir / f"{run_id}.json"
+    tmp_filename = filename.with_suffix(".json.tmp")
     payload = {
         "run_id": run_id,
         "pipeline": pipeline,
@@ -120,7 +121,10 @@ def save_run(
         },
         "best_individual": _individual_to_json(best_individual),
     }
-    filename.write_text(json.dumps(payload, indent=2))
+    # Write to a temp file first, then atomically rename — prevents a corrupt
+    # .json file if the process is killed mid-write
+    tmp_filename.write_text(json.dumps(payload, indent=2))
+    tmp_filename.rename(filename)
     return filename
 
 
@@ -181,6 +185,8 @@ class GAConfig:
         mutation_rate:        Per-triangle mutation probability (0–1).
         elitism:              Best N individuals copied unchanged each generation.
         selection_type:       "tournament", "ranking", or "roulette".
+        tournament_size:      Candidates sampled per tournament (only used when
+                              selection_type="tournament").
         triangle_alpha_range: Inclusive (min, max) alpha range for triangles.
         trial:                0-based trial index (set automatically by run_trials).
         label:                Pipeline name injected into log messages (set automatically).
@@ -196,7 +202,8 @@ class GAConfig:
     mutation_rate: float
     elitism: int
     selection_type: str
-    triangle_alpha_range: tuple[int, int]
+    tournament_size: int = 4
+    triangle_alpha_range: tuple[int, int] = (255, 255)
     trial: int = 0    # set automatically — do not set manually
     label: str = ""   # set automatically — do not set manually
 
@@ -277,6 +284,8 @@ def _params_match(config: GAConfig, run: dict) -> bool:
         and p.get("mutation_rate")  == config.mutation_rate
         and p.get("elitism")        == config.elitism
         and p.get("selection_type") == config.selection_type
+        # tournament_size is optional: old cached runs may not have it serialised
+        and (p.get("tournament_size") is None or p.get("tournament_size") == config.tournament_size)
         # alpha range is stored as a list in JSON, but as a tuple in GAConfig
         and p.get("triangle_alpha_range") == list(config.triangle_alpha_range)
         # compare by function name so the check works across Python sessions
@@ -462,6 +471,7 @@ def run_single_ga(config: GAConfig) -> dict:
         mutation_rate=config.mutation_rate,
         elitism=config.elitism,
         selection_type=config.selection_type,
+        tournament_size=config.tournament_size,
         triangle_alpha_range=config.triangle_alpha_range,
         evaluation_backend="sequential",
     )
@@ -517,6 +527,7 @@ def run_single_ga_variant(config: GAConfig, ga_class_name: str, extra_kwargs: di
         mutation_rate=config.mutation_rate,
         elitism=config.elitism,
         selection_type=config.selection_type,
+        tournament_size=config.tournament_size,
         triangle_alpha_range=config.triangle_alpha_range,
         evaluation_backend="sequential",
         **extra_kwargs,
@@ -616,23 +627,27 @@ def run_trials(
         futures = {executor.submit(run_single_ga, c): c for c in configs}
         new_results = []
         for future in as_completed(futures):
-            new_results.append(future.result())
+            try:
+                r = future.result()
+            except Exception as exc:
+                cfg = futures[future]
+                print(f"  ✗ [{cfg.label}] Trial {cfg.trial + 1} failed: {exc}", flush=True)
+                continue
+            # Save immediately so partial progress survives interruptions
+            save_run(
+                pipeline=pipeline,
+                parameters=r["params"],
+                best_fitness=r["fitness"],
+                history=r["history"],
+                best_individual=r["individual"],
+                runtime_seconds=r["runtime"],
+                notes=f"{notes} [trial {r['trial'] + 1}/{n_trials}]",
+                results_dir=results_dir,
+            )
+            new_results.append(r)
     new_runtime = time.perf_counter() - t0
 
     new_results.sort(key=lambda r: r["trial"])
-
-    for r in new_results:
-        save_run(
-            pipeline=pipeline,
-            parameters=r["params"],
-            best_fitness=r["fitness"],
-            history=r["history"],
-            best_individual=r["individual"],
-            runtime_seconds=r["runtime"],
-            notes=f"{notes} [trial {r['trial'] + 1}/{n_trials}]",
-            results_dir=results_dir,
-        )
-
     all_results = (existing + new_results)[-n_trials:]
     total_runtime = sum(r["runtime"] for r in existing) + new_runtime
     summary = _build_trial_summary(pipeline, all_results, total_runtime)
@@ -732,30 +747,34 @@ def run_variants_batch(
         }
         for future in as_completed(future_to_meta):
             label, pipeline, trial_idx = future_to_meta[future]
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as exc:
+                print(f"  ✗ [{pipeline}] Trial {trial_idx + 1} failed: {exc}", flush=True)
+                continue
             n_done += 1
             print(f"  ✓ [{pipeline}] trial {trial_idx + 1}/{n_trials}  "
                   f"RMSE={result['fitness']:.6f}  ({result['runtime']:.1f}s)  "
                   f"[{n_done}/{len(all_jobs)} done]", flush=True)
+            # Save immediately so partial progress survives interruptions
+            save_run(
+                pipeline=pipeline,
+                parameters=result["params"],
+                best_fitness=result["fitness"],
+                history=result["history"],
+                best_individual=result["individual"],
+                runtime_seconds=result["runtime"],
+                notes=f"{notes} [trial {trial_idx + 1}/{n_trials}]",
+                results_dir=results_dir,
+            )
             new_by_label[label].append(result)
 
     wall = time.perf_counter() - t0
 
-    # ── Phase 3: save results and build summaries ─────────────────────────────
+    # ── Phase 3: build summaries (results already saved above) ───────────────
     summaries = {}
     for label, (pipeline, _cls, extra_kwargs) in variants.items():
         new_results = sorted(new_by_label[label], key=lambda r: r["trial"])
-        for r in new_results:
-            save_run(
-                pipeline=pipeline,
-                parameters=r["params"],
-                best_fitness=r["fitness"],
-                history=r["history"],
-                best_individual=r["individual"],
-                runtime_seconds=r["runtime"],
-                notes=f"{notes} [trial {r['trial'] + 1}/{n_trials}]",
-                results_dir=results_dir,
-            )
         all_results   = (cached_by_label[label] + new_results)[-n_trials:]
         total_runtime = (sum(r["runtime"] for r in cached_by_label[label])
                          + sum(r["runtime"] for r in new_results))
@@ -869,7 +888,24 @@ def run_grid_search(
         all_new_unordered = []
         completed = 0
         for future in as_completed(futures):
-            all_new_unordered.append(future.result())
+            try:
+                r = future.result()
+            except Exception as exc:
+                cfg = futures[future]
+                print(f"│  ✗ [{cfg.label}] Trial {cfg.trial + 1} failed: {exc}", flush=True)
+                continue
+            # Save immediately so partial progress survives interruptions
+            save_run(
+                pipeline=r["label"],
+                parameters=r["params"],
+                best_fitness=r["fitness"],
+                history=r["history"],
+                best_individual=r["individual"],
+                runtime_seconds=r["runtime"],
+                notes=f"{notes} [trial {r['trial'] + 1}/{n_trials}]",
+                results_dir=results_dir,
+            )
+            all_new_unordered.append(r)
             completed += 1
             print(f"│  {completed}/{total_jobs} jobs done")
     total_runtime = time.perf_counter() - t0
@@ -885,23 +921,11 @@ def run_grid_search(
                 new_by_value[value].append(r)
                 break
 
-    # --- Save new results and build summaries by merging cached + new ---
+    # --- Build summaries by merging cached + new (results already saved above) ---
     for value in cached_per_value:
         pipeline = f"{pipeline_prefix}-{value}"
         existing    = cached_per_value[value]
         new_results = new_by_value[value]
-
-        for r in new_results:
-            save_run(
-                pipeline=pipeline,
-                parameters=r["params"],
-                best_fitness=r["fitness"],
-                history=r["history"],
-                best_individual=r["individual"],
-                runtime_seconds=r["runtime"],
-                notes=f"{notes} [trial {r['trial'] + 1}/{n_trials}]",
-                results_dir=results_dir,
-            )
 
         all_results = (existing + new_results)[-n_trials:]
         runtime = sum(r["runtime"] for r in existing) + (total_runtime / len(cached_per_value))

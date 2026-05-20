@@ -67,7 +67,7 @@ def select_parent(
 def tournament_selection(
     population_data: list[Individual],
     fitness_values: list[float],
-    tournament_size: int = 4,
+    tournament_size: int = 3,
 ) -> Individual:
     """
     Sample tournament_size individuals and return the one with the lowest RMSE.
