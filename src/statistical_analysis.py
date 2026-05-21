@@ -141,6 +141,9 @@ class GeneticAlgorithmStatisticalAnalysis:
             
         elif base_name_lower.startswith('restrictedmating-'):
             return base_name[len('restrictedmating-'):] # Returns 'baseline', 'best_partial_match', etc.
+    
+        elif base_name_lower.startswith('alpha-'):
+            return base_name[len('alpha-'):] # Returns '5-255', '128-255', etc.
 
         # 3. Fallback for simple numeric parameters (population_size, elitism, mutation_rate)
         # E.g., "popsize-100" -> "100", "mutation-rate-0.05" -> "0.05"
