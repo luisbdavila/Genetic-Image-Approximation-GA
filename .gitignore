@@ -25,10 +25,7 @@ dist/
 
 outputs/
 artifacts/
-results/**/*.json
-!results/grid_search/best_config.json
-!results/best_config_augmented_run.json
-!results/best_config_base_run.json
+
 **/AGENTS.md
 *.log
 .env
