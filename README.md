@@ -14,10 +14,8 @@ Then open any notebook with the project interpreter. The first cell adds the pro
 
 | Notebook | Purpose |
 |---|---|
-| `Initial_analysis.ipynb` | First look at the target image; baseline GA smoke-check |
-| `Step_by_step_exploration.ipynb` | Main analysis: systematic component evaluation (population size, elitism, selection, crossover, mutation rate, diversity methods) |
+| `Initial_analysis.ipynb` | First look at the target image,|
 | `Grid_search_experiment.ipynb` | Cartesian-product search over crossover, selection, and restricted mating combinations |
-| `Random_search_experiment.ipynb` | Random sampling of the same search space with early stopping |
 
 ## Project Structure
 
@@ -26,6 +24,7 @@ src/
   load_image.py        — loads and resizes the target image to a NumPy array
   population.py        — Triangle dataclass, population factories, alpha sampling
   rendering.py         — renders a triangle list to a PIL image / NumPy array
+  statistical_analysis.py — Statistical functions for hypotesis tests
   ga/
     algorithm.py       — GeneticAlgorithm: selection → crossover → mutation → elitism loop
     fitness.py         — compute_rmse: pixel-level RMSE fitness function
@@ -34,11 +33,9 @@ src/
     selection.py       — tournament, ranking, and roulette-wheel parent selection
     diversity.py       — FitnessSharingGA, RestrictedMatingGA, FitnessSharingRestrictedMatingGA; diversity trial runners
     parallel.py        — GAConfig, run_trials, run_grid_search, run_variants_batch (ProcessPoolExecutor + JSON caching)
-    grid_search.py     — build_grid_setups, build_random_setups, run_one_trial, build_summary (for search notebooks)
     plotting.py        — reusable matplotlib figures: convergence curves, bar charts, diversity panels
     evaluation.py      — sequential, thread, and process fitness evaluation backends
     logs.py            — GenerationLog type and builder (used by progress_callback)
-
 notebooks/
 images/
   girl_pearl_earing.png   — 300×400 target image
