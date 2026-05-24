@@ -44,7 +44,7 @@ results/                  — cached JSON trial results, organised by experiment
 
 ## GA Components
 
-**Representation** — each individual is a list of 100 triangles. Every triangle has 10 parameters: three vertex coordinates (x, y), an RGB colour, and an alpha (opacity) value. The alpha range is configurable; the best-performing configuration uses `(5, 128)` (partially transparent triangles).
+**Representation** — each individual is a list of 100 triangles. Every triangle has 10 parameters: three vertex coordinates (x, y), an RGB colour, and an alpha (opacity) value. Alpha was fixed at 255 (fully opaque) during the initial tuning stages to reduce search space complexity and computational cost. Once all other parameters were optimised, the alpha range was varied as a final step — the best-performing configuration uses `(5, 128)` (partially transparent triangles).
 
 **Fitness** — pixel-by-pixel RMSE between the rendered candidate and the target, normalised to [0, 1]. Lower is better.
 
