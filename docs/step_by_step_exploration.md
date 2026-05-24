@@ -12,7 +12,7 @@ Rather than tuning all Genetic Algorithm parameters simultaneously, the notebook
 
 ## Structure
 
-The exploration proceeds through the following sequential stages:
+The exploration proceeds through thes following sequential stages:
 
 | Stage | What is evaluated |
 |---|---|

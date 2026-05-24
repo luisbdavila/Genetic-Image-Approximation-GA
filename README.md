@@ -1,6 +1,6 @@
 # CIFO Project — Triangle Image Approximation with Genetic Algorithms
 
-Approximating Vermeer's *Girl with a Pearl Earring* using a population of 100 opaque triangles, evolved by a genetic algorithm to minimise the pixel-level RMSE against the 300×400 target image.
+Approximating Vermeer's *Girl with a Pearl Earring* using a population of 100 triangles, evolved by a genetic algorithm to minimise the pixel-level RMSE against the 300×400 target image.
 
 ## Setup
 
@@ -14,8 +14,8 @@ Then open any notebook with the project interpreter. The first cell adds the pro
 
 | Notebook | Purpose |
 |---|---|
-| `Initial_analysis.ipynb` | First look at the target image,|
-| `Grid_search_experiment.ipynb` | Cartesian-product search over crossover, selection, and restricted mating combinations |
+| `Initial_analysis.ipynb` | First look at the target image and colour distribution |
+| `Step_by_step_exploration.ipynb` | Sequential component-by-component tuning (Challenge 3): population size, elitism, selection, crossover, mutation, diversity mechanisms, alpha range, and extended 3000-generation runs |
 
 ## Project Structure
 
@@ -44,15 +44,15 @@ results/                  — cached JSON trial results, organised by experiment
 
 ## GA Components
 
-**Representation** — each individual is a list of 100 triangles. Every triangle has 9 parameters: three vertex coordinates (x, y) and an RGB colour. Alpha is fixed at 255 (fully opaque) in all experiments.
+**Representation** — each individual is a list of 100 triangles. Every triangle has 10 parameters: three vertex coordinates (x, y), an RGB colour, and an alpha (opacity) value. The alpha range is configurable; the best-performing configuration uses `(5, 128)` (partially transparent triangles).
 
 **Fitness** — pixel-by-pixel RMSE between the rendered candidate and the target, normalised to [0, 1]. Lower is better.
 
 **Crossover operators** — `single_point`, `single_point_two_children`, `two_point`, `two_point_two_children`, `pmx`, `cycle`.
 
-**Mutation** — `random_triangle_mutation`: replaces each triangle's geometry or colour with a random value at a per-triangle probability.
+**Mutation** — `random_triangle_mutation`: for each triangle selected for mutation (per-triangle probability), one attribute is chosen at random and nudged by a small delta (±15 for coordinates, ±25 for colour/alpha), then clamped to valid bounds.
 
-**Selection** — tournament (k=3), ranking, roulette-wheel.
+**Selection** — tournament (best-performing size k=8), ranking, roulette-wheel.
 
 **Diversity methods** — fitness sharing (shared fitness via niche radius σ) and restricted mating (distance-based parent pairing). A combined variant (`FitnessSharingRestrictedMatingGA`) is evaluated in the long-run section.
 
