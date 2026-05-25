@@ -36,6 +36,10 @@ src/
     plotting.py        — reusable matplotlib figures: convergence curves, bar charts, diversity panels
     evaluation.py      — sequential, thread, and process fitness evaluation backends
     logs.py            — GenerationLog type and builder (used by progress_callback)
+Documents/
+  C08_Iguana.pdf       — Report
+  stast_analysis.md    — Statistical functions explanined
+  step_by_step_exploration.md — Step by step notebook structure and conclusions
 notebooks/
 images/
   girl_pearl_earing.png   — 300×400 target image
